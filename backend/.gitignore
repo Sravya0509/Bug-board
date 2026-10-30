@@ -1,0 +1,13 @@
+# Environment files and secrets
+.env
+.env.*
+.env.local
+
+# Allow environment templates
+!.env.example
+
+# Node dependencies
+node_modules/
+
+# Logs
+*.log
