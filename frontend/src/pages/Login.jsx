@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../api';
 
@@ -11,6 +11,10 @@ export default function Login() {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for any flash message passed from registration
+  const successMessage = location.state?.successMessage || '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,8 +61,19 @@ export default function Login() {
             </svg>
           </div>
           <h1 className="auth-title">Welcome to BugBoard</h1>
-          <p className="auth-subtitle">Sign in with administrator credentials to manage projects & issues</p>
+          <p className="auth-subtitle">Sign in with your credentials to manage projects & issues</p>
         </div>
+
+        {/* Success Alert (e.g. from registration redirect) */}
+        {successMessage && !errorMessage && (
+          <div className="alert alert-success">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>{successMessage}</span>
+          </div>
+        )}
 
         {errorMessage && (
           <div className="alert alert-error">
@@ -78,7 +93,7 @@ export default function Login() {
               id="email"
               type="email"
               className="form-input"
-              placeholder="admin@bugboard.com"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -103,13 +118,13 @@ export default function Login() {
             className="btn btn-primary btn-block"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Signing In...' : 'Sign In to Workspace'}
+            {isSubmitting ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
         {/* Demo Credentials Quick-Fill Button */}
         <div className="demo-credentials-box">
-          <div className="demo-label">Local Testing Helper:</div>
+          <div className="demo-label">Testing Helper:</div>
           <div className="demo-buttons-group">
             <button
               type="button"
@@ -122,8 +137,11 @@ export default function Login() {
         </div>
 
         <div className="auth-footer">
-          <p className="text-sm text-muted">
-            All team members share this administrator login. To inspect your assigned tasks, navigate to the <strong>Team Tasks</strong> tab after signing in.
+          <p className="text-sm text-secondary">
+            Don't have an account?{' '}
+            <Link to="/register" className="auth-link">
+              Create Account
+            </Link>
           </p>
         </div>
       </div>

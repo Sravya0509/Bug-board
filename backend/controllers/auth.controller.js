@@ -2,46 +2,63 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 
-// Register handler - single administrator policy
+// Register handler - user registration
 async function register(req, res) {
   try {
-    // Check if an administrator account already exists
-    const [existingUsers] = await db.execute('SELECT COUNT(*) AS count FROM users');
-    const userCount = existingUsers[0].count;
-
-    if (userCount >= 1) {
-      return res.status(403).json({
-        message: 'Registration is disabled. The system is configured with a single administrator account. Team members use the administrator credentials to access BugBoard.'
-      });
-    }
-
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required.' });
+    // Validate presence of required fields
+    if (!name || !name.trim() || !email || !email.trim() || !password) {
+      return res.status(400).json({ message: 'Full name, email, and password are required.' });
     }
 
+    const cleanName = name.trim();
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
+
+    // Validate password length
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
     }
 
-    // Hash password
+    // Check for duplicate email address
+    const [existingUsers] = await db.execute(
+      'SELECT id FROM users WHERE email = ?',
+      [normalizedEmail]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ message: 'An account with this email address already exists.' });
+    }
+
+    // Determine user role (initial user is Admin; subsequent users are Developer)
+    const [userCountRows] = await db.execute('SELECT COUNT(*) AS count FROM users');
+    const isFirstUser = userCountRows[0].count === 0;
+    const assignedRole = isFirstUser ? 'Admin' : 'Developer';
+
+    // Hash password securely with bcryptjs
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert sole administrator
+    // Insert new user into database using parameterized query
     const [result] = await db.execute(
-      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, "Admin")',
-      [name.trim(), email.toLowerCase().trim(), hashedPassword]
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      [cleanName, normalizedEmail, hashedPassword, assignedRole]
     );
 
     const newUser = {
       id: result.insertId,
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      role: 'Admin'
+      name: cleanName,
+      email: normalizedEmail,
+      role: assignedRole
     };
 
+    // Generate JWT token
     const token = jwt.sign(
       { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role },
       process.env.JWT_SECRET || 'fallback_secret',
@@ -49,13 +66,13 @@ async function register(req, res) {
     );
 
     return res.status(201).json({
-      message: 'Administrator registered successfully.',
+      message: 'Account created successfully.',
       token,
       user: newUser
     });
   } catch (error) {
     console.error('Registration error:', error);
-    return res.status(500).json({ message: 'Server error while registering administrator.' });
+    return res.status(500).json({ message: 'Server error while creating account.' });
   }
 }
 
@@ -134,7 +151,8 @@ async function getAuthStatus(req, res) {
     const [users] = await db.execute('SELECT COUNT(*) AS count FROM users');
     return res.status(200).json({
       hasAdmin: users[0].count > 0,
-      adminCount: users[0].count
+      adminCount: users[0].count,
+      registrationOpen: true
     });
   } catch (error) {
     console.error('Auth status error:', error);

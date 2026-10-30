@@ -7,13 +7,13 @@
 CREATE DATABASE IF NOT EXISTS bugboard_db;
 USE bugboard_db;
 
--- 1. Users Table (Single Administrator Account)
+-- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  role ENUM('Admin') NOT NULL DEFAULT 'Admin',
+  role ENUM('Admin', 'Developer') NOT NULL DEFAULT 'Developer',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

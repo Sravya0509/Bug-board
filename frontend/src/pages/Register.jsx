@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { registerUser, getAuthStatus } from '../api';
+import { registerUser } from '../api';
 
 export default function Register() {
-  const [hasAdmin, setHasAdmin] = useState(true);
-  const [checkingStatus, setCheckingStatus] = useState(true);
-
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,116 +10,94 @@ export default function Register() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    async function checkStatus() {
-      try {
-        const data = await getAuthStatus();
-        setHasAdmin(data.hasAdmin);
-      } catch (err) {
-        setHasAdmin(true);
-      } finally {
-        setCheckingStatus(false);
-      }
-    }
-    checkStatus();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!name.trim() || !email.trim() || !password) {
-      setErrorMessage('Please fill in all required fields.');
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    // 1. All fields required
+    if (!trimmedName || !trimmedEmail || !password || !confirmPassword) {
+      setErrorMessage('All fields are required.');
       return;
     }
 
+    // 2. Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    // 3. Password length requirements
     if (password.length < 6) {
       setErrorMessage('Password must be at least 6 characters long.');
       return;
     }
 
+    // 4. Password confirmation match
     if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
+      setErrorMessage('Password and Confirm Password must match.');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      const data = await registerUser(name, email, password);
-      login(data.user, data.token);
-      navigate('/dashboard');
+      await registerUser(trimmedName, trimmedEmail, password);
+      // Redirect to login with success flash message
+      navigate('/login', {
+        state: { successMessage: 'Account created successfully! Please sign in with your credentials.' }
+      });
     } catch (err) {
-      setErrorMessage(err.message || 'Registration failed.');
+      setErrorMessage(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (checkingStatus) {
-    return (
-      <div className="auth-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Checking setup status...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If administrator already configured, show single administrator notice
-  if (hasAdmin) {
-    return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <div className="auth-logo-badge">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-              </svg>
-            </div>
-            <h1 className="auth-title">Administrator Configured</h1>
-            <p className="auth-subtitle">
-              Registration is restricted because BugBoard operates with a single administrator workspace.
-            </p>
-          </div>
-
-          <div className="alert alert-success mb-3">
-            <span>The system administrator account is already set up and active. All team members access the application using the administrator credentials.</span>
-          </div>
-
-          <Link to="/login" className="btn btn-primary btn-block">
-            Go to Sign In
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1 className="auth-title">Set Up Administrator</h1>
-          <p className="auth-subtitle">Create the primary administrator account for BugBoard</p>
+          <div className="auth-logo-badge">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m8 2 1.88 1.88"></path>
+              <path d="M14.12 3.88 16 2"></path>
+              <rect width="8" height="14" x="8" y="6" rx="4"></rect>
+              <path d="M4 10h4"></path>
+              <path d="M16 10h4"></path>
+              <path d="m4 19 3.5-3.5"></path>
+              <path d="m20 19-3.5-3.5"></path>
+              <path d="m4 6 3.5 3.5"></path>
+              <path d="m20 6-3.5 3.5"></path>
+            </svg>
+          </div>
+          <h1 className="auth-title">Create an Account</h1>
+          <p className="auth-subtitle">Join BugBoard to collaborate on projects and track issues</p>
         </div>
 
         {errorMessage && (
           <div className="alert alert-error">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
             <span>{errorMessage}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
-            <label htmlFor="reg-name">Administrator Name</label>
+            <label htmlFor="reg-name">Full Name</label>
             <input
               id="reg-name"
               type="text"
               className="form-input"
-              placeholder="e.g. Administrator"
+              placeholder="e.g. Jane Doe"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -136,7 +110,7 @@ export default function Register() {
               id="reg-email"
               type="email"
               className="form-input"
-              placeholder="admin@bugboard.com"
+              placeholder="jane@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -174,13 +148,16 @@ export default function Register() {
             className="btn btn-primary btn-block"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Configuring...' : 'Complete Administrator Setup'}
+            {isSubmitting ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
         <div className="auth-footer">
-          <p>
-            Already configured? <Link to="/login" className="auth-link">Sign In</Link>
+          <p className="text-sm text-secondary">
+            Already have an account?{' '}
+            <Link to="/login" className="auth-link">
+              Sign in
+            </Link>
           </p>
         </div>
       </div>
