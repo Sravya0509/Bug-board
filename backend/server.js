@@ -47,7 +47,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`🚀 BugBoard backend server is running on http://localhost:${PORT}`);
-});
+// Start the server only when executed directly (local development)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 BugBoard backend server is running on http://localhost:${PORT}`);
+  });
+}
+
+// Export the Express app for Vercel Services runtime
+module.exports = app;
