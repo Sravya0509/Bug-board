@@ -20,6 +20,9 @@ database/*.dump
 *.sql.bak
 !database/schema.sql
 
+#aiven ca
+backend/ca.pem
+
 # Dependencies
 node_modules/
 backend/node_modules/
